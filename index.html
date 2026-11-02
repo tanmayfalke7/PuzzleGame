@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PIECE IT UP! - Graffiti Photo Puzzle</title>
+  
+  <!-- Google Fonts: Street Art & Graffiti Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee+Spice&family=Permanent+Marker&family=Rubik+Dirt&family=Sedgwick+Ave+Display&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      min-height: 100vh;
+      width: 100vw;
+      overflow-x: hidden;
+      font-family: 'Permanent Marker', cursive;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 15px;
+      /* High resolution textured brick wall backdrop */
+      background: 
+        linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.55)),
+        url('https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&q=80&w=1920') center center / cover no-repeat fixed;
+      position: relative;
+    }
+
+    /* SVG Paint Drips and Splatters overlay */
+    .bg-splatters {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+      opacity: 0.85;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Graffiti Header Title Styling */
+    .header-container {
+      text-align: center;
+      margin-top: 10px;
+      margin-bottom: 25px;
+      position: relative;
+    }
+
+    .main-title {
+      font-family: 'Sedgwick Ave Display', cursive;
+      font-size: clamp(2.8rem, 7vw, 5.5rem);
+      color: #ff007f;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      line-height: 1;
+      text-shadow: 
+        4px 4px 0px #000,
+        -3px -3px 0px #000,
+        3px -3px 0px #000,
+        -3px 3px 0px #000,
+        6px 6px 0px #00f3ff,
+        10px 10px 20px rgba(0,0,0,0.9);
+      transform: rotate(-2deg);
+      animation: pulseGlow 3s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      0% { filter: drop-shadow(0 0 10px rgba(255, 0, 127, 0.6)); }
+      100% { filter: drop-shadow(0 0 25px rgba(0, 243, 255, 0.8)); }
+    }
+
+    .sub-title {
+      font-family: 'Rubik Dirt', cursive;
+      font-size: clamp(1.2rem, 3.2vw, 2.2rem);
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      background: #000;
+      display: inline-block;
+      padding: 4px 18px;
+      border: 3px solid #ffea00;
+      box-shadow: 5px 5px 0px #ff007f;
+      transform: rotate(1.5deg) translateY(-8px);
+      margin-top: 5px;
+    }
+
+    /* Layout Grid: Signs on Left/Right & Board in Center */
+    .game-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 25px;
+      width: 100%;
+      justify-items: center;
+      align-items: center;
+    }
+
+    @media (min-width: 900px) {
+      .game-layout {
+        grid-template-columns: 280px 1fr 280px;
+        align-items: start;
+      }
+    }
+
+    /* Metal Street Sign / License Plate Styling */
+    .street-sign {
+      background: linear-gradient(135deg, #d2d5db 0%, #8d939e 50%, #5d636f 100%);
+      border: 4px solid #111;
+      border-radius: 12px;
+      padding: 16px 20px;
+      width: 100%;
+      max-width: 280px;
+      box-shadow: 
+        0 10px 20px rgba(0,0,0,0.6),
+        inset 0 2px 3px rgba(255,255,255,0.8),
+        inset 0 -2px 3px rgba(0,0,0,0.5);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(-1.5deg);
+      transition: transform 0.3s;
+    }
+
+    .street-sign.right-sign {
+      transform: rotate(2deg);
+    }
+
+    /* Metallic Rivets / Bolts in Corners */
+    .rivet {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: radial-gradient(circle at 30% 30%, #ffffff, #666, #222);
+      border-radius: 50%;
+      border: 1px solid #111;
+      box-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+    .rivet.top-left { top: 8px; left: 8px; }
+    .rivet.top-right { top: 8px; right: 8px; }
+    .rivet.bottom-left { bottom: 8px; left: 8px; }
+    .rivet.bottom-right { bottom: 8px; right: 8px; }
+
+    /* Sign Text Content */
+    .sign-title {
+      font-family: 'Sedgwick Ave Display', cursive;
+      font-size: 1.4rem;
+      color: #111;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .sign-value {
+      font-family: 'Rubik Dirt', cursive;
+      font-size: 2.2rem;
+      color: #ff007f;
+      text-shadow: 2px 2px 0px #000;
+      background: #111;
+      width: 100%;
+      text-align: center;
+      padding: 6px 0;
+      border-radius: 6px;
+      border: 2px solid #ffea00;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    /* Action Buttons Styled like Street Signs */
+    .btn-sign {
+      margin-top: 18px;
+      width: 100%;
+      background: linear-gradient(135deg, #ffea00 0%, #ffaa00 100%);
+      color: #000;
+      border: 3px solid #000;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-family: 'Permanent Marker', cursive;
+      font-size: 1.2rem;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 4px 4px 0px #000;
+      transition: all 0.15s ease-in-out;
+      text-decoration: none;
+      position: relative;
+    }
+
+    .btn-sign:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000;
+      background: linear-gradient(135deg, #00f3ff 0%, #00a8ff 100%);
+      color: #000;
+    }
+
+    .btn-sign:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px #000;
+    }
+
+    .btn-scrap {
+      background: linear-gradient(135deg, #ff007f 0%, #cc005f 100%);
+      color: #fff;
+    }
+
+    .btn-scrap:hover {
+      background: linear-gradient(135deg, #ffea00 0%, #ffaa00 100%);
+      color: #000;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Central Puzzle Board Container */
+    .board-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Street Art Spray Frame Around Grid */
+    .puzzle-board-frame {
+      background: #111;
+      padding: 14px;
+      border-radius: 16px;
+      border: 5px solid #000;
+      box-shadow: 
+        0 20px 40px rgba(0,0,0,0.8),
+        0 0 0 4px #00f3ff,
+        0 0 25px #ff007f;
+      position: relative;
+    }
+
+    .puzzle-board-frame::before {
+      content: '';
+      position: absolute;
+      top: -15px; left: -15px; right: -15px; bottom: -15px;
+      border: 3px dashed #ffea00;
+      border-radius: 20px;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .puzzle-grid {
+      width: clamp(300px, 80vw, 440px);
+      height: clamp(300px, 80vw, 440px);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 6px;
+      background: #222;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    /* Individual Puzzle Tile Style with Jigsaw Grunge Look */
+    .puzzle-tile {
+      width: 100%;
+      height: 100%;
+      background-repeat: no-repeat;
+      cursor: grab;
+      border-radius: 6px;
+      border: 2px solid rgba(0, 0, 0, 0.8);
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.6), 0 3px 6px rgba(0,0,0,0.4);
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      position: relative;
+    }
+
+    .puzzle-tile:hover {
+      transform: scale(1.02);
+      z-index: 5;
+      border-color: #ffea00;
+      box-shadow: 0 0 12px #ffea00;
+    }
+
+    .puzzle-tile:active {
+      cursor: grabbing;
+    }
+
+    .puzzle-tile.dragging {
+      opacity: 0.4;
+      transform: scale(0.92) rotate(4deg);
+      border: 3px dashed #ff007f;
+    }
+
+    .puzzle-tile.drag-over {
+      border: 3px solid #00f3ff;
+      transform: scale(1.04);
+      box-shadow: 0 0 20px #00f3ff;
+      z-index: 10;
+    }
+
+    /* Scorecard Modal Wall Poster Style */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(5px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .poster-scorecard {
+      background: #151515;
+      border: 6px solid #ffea00;
+      outline: 6px solid #000;
+      border-radius: 12px;
+      padding: 35px 30px;
+      width: 90%;
+      max-width: 440px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.9), 0 0 30px rgba(255, 0, 127, 0.5);
+      transform: scale(0.7) rotate(-3deg);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .modal-overlay.active .poster-scorecard {
+      transform: scale(1) rotate(-1.5deg);
+    }
+
+    .poster-scorecard h2 {
+      font-family: 'Sedgwick Ave Display', cursive;
+      font-size: 3rem;
+      color: #00f3ff;
+      text-shadow: 3px 3px 0 #000, -2px -2px 0 #000, 4px 4px 10px #ff007f;
+      margin-bottom: 15px;
+      line-height: 1;
+    }
+
+    .poster-scorecard p {
+      font-family: 'Permanent Marker', cursive;
+      font-size: 1.3rem;
+      margin: 10px 0;
+      color: #eee;
+    }
+
+    .score-highlight {
+      color: #ffea00;
+      font-family: 'Rubik Dirt', cursive;
+      font-size: 1.8rem;
+    }
+
+    .btn-restart-large {
+      margin-top: 22px;
+      padding: 14px 20px;
+      font-size: 1.4rem;
+      background: linear-gradient(135deg, #ff007f 0%, #00f3ff 100%);
+      color: #fff;
+      border: 3px solid #000;
+      box-shadow: 5px 5px 0px #000;
+    }
+
+    .btn-restart-large:hover {
+      background: linear-gradient(135deg, #ffea00 0%, #ff007f 100%);
+      color: #000;
+    }
+
+    /* Drip Graphic SVG details */
+    .drip-svg {
+      position: absolute;
+      bottom: -15px;
+      left: 0;
+      width: 100%;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <svg class="bg-splatters" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+    <!-- Pink Splatter Top Left -->
+    <path d="M50,80 Q90,20 150,60 T250,90 T200,180 T100,200 Z" fill="#ff007f" opacity="0.4"/>
+    <circle cx="280" cy="120" r="12" fill="#ff007f" opacity="0.5"/>
+    <circle cx="220" cy="220" r="8" fill="#ff007f" opacity="0.6"/>
+    <circle cx="70" cy="220" r="15" fill="#ff007f" opacity="0.3"/>
+
+    <!-- Cyan Splatter Top Right -->
+    <path d="M750,50 Q850,10 920,80 T950,220 T820,250 T720,150 Z" fill="#00f3ff" opacity="0.35"/>
+    <circle cx="700" cy="180" r="18" fill="#00f3ff" opacity="0.4"/>
+    <circle cx="670" cy="120" r="9" fill="#00f3ff" opacity="0.5"/>
+    <circle cx="890" cy="270" r="12" fill="#00f3ff" opacity="0.4"/>
+
+    <!-- Yellow Splatter Bottom Left -->
+    <path d="M20,750 Q100,700 180,780 T150,920 T40,950 T10,840 Z" fill="#ffea00" opacity="0.3"/>
+    <circle cx="210" cy="850" r="14" fill="#ffea00" opacity="0.4"/>
+    <circle cx="240" cy="780" r="7" fill="#ffea00" opacity="0.5"/>
+
+    <!-- Drips from top border -->
+    <path d="M0,0 L1000,0 L1000,20 Q900,120 880,30 Q800,180 780,20 Q650,220 630,40 Q450,160 430,30 Q250,250 230,20 L0,20 Z" fill="#000" opacity="0.5"/>
+  </svg>
+
+  <div class="wrapper">
+    <header class="header-container">
+      <h1 class="main-title">PIECE IT UP!</h1>
+      <div class="sub-title">A STREET ART SHUFFLE</div>
+    </header>
+
+    <main class="game-layout">
+      <!-- Left Side: Moves Sign & Upload Photo -->
+      <div class="street-sign left-sign">
+        <div class="rivet top-left"></div>
+        <div class="rivet top-right"></div>
+        <div class="rivet bottom-left"></div>
+        <div class="rivet bottom-right"></div>
+
+        <div class="sign-title"><i class="fa-solid fa-shoe-prints"></i> MOVES</div>
+        <div id="movesCount" class="sign-value">00</div>
+
+        <label for="imageUpload" class="btn-sign">
+          <i class="fa-solid fa-camera-retro"></i> TAG PHOTO
+        </label>
+        <input type="file" id="imageUpload" accept="image/*">
+      </div>
+
+      <!-- Center: Puzzle Board -->
+      <div class="board-container">
+        <div class="puzzle-board-frame">
+          <div id="puzzleGrid" class="puzzle-grid"></div>
+        </div>
+      </div>
+
+      <!-- Right Side: Time Sign & Scrap / Reset -->
+      <div class="street-sign right-sign">
+        <div class="rivet top-left"></div>
+        <div class="rivet top-right"></div>
+        <div class="rivet bottom-left"></div>
+        <div class="rivet bottom-right"></div>
+
+        <div class="sign-title"><i class="fa-solid fa-stopwatch"></i> TIME</div>
+        <div id="timer" class="sign-value">00:00</div>
+
+        <button id="resetBtn" class="btn-sign btn-scrap">
+          <i class="fa-solid fa-rotate-right"></i> SCRAP IT
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <div id="scorecardModal" class="modal-overlay">
+    <div class="poster-scorecard">
+      <h2>SOLVED IT!</h2>
+      <p>YOU CRUSHED THE BOARD!</p>
+      <p>TOTAL MOVES: <span id="finalMoves" class="score-highlight">0</span></p>
+      <p>TIME TAKEN: <span id="finalTime" class="score-highlight">00:00</span></p>
+
+      <button id="playAgainBtn" class="btn-sign btn-restart-large">
+        <i class="fa-solid fa-fire"></i> RUN IT BACK
+      </button>
+
+      <!-- Spray Drip Graphic in Modal -->
+      <svg class="drip-svg" viewBox="0 0 400 40" fill="none">
+        <path d="M0 0H400V10C350 25 340 5 310 10C280 35 270 5 240 10C210 20 200 40 190 10C170 5 160 28 140 10C110 10 100 30 80 10C50 10 40 25 0 10V0Z" fill="#ff007f"/>
+      </svg>
+    </div>
+  </div>
+
+  <script>
+    const GRID_SIZE = 3;
+    const TOTAL_TILES = GRID_SIZE * GRID_SIZE;
+
+    // DOM Elements
+    const grid = document.getElementById('puzzleGrid');
+    const imageUpload = document.getElementById('imageUpload');
+    const movesDisplay = document.getElementById('movesCount');
+    const timerDisplay = document.getElementById('timer');
+    const resetBtn = document.getElementById('resetBtn');
+    const scorecardModal = document.getElementById('scorecardModal');
+    const finalMovesDisplay = document.getElementById('finalMoves');
+    const finalTimeDisplay = document.getElementById('finalTime');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+
+    // Default high resolution urban graffiti image
+    const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&q=80&w=800';
+
+    let currentImageSrc = DEFAULT_IMAGE;
+    let tileOrder = [];
+    let moves = 0;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let gameStarted = false;
+    let draggedTileIndex = null;
+
+    // Initialize Game
+    window.addEventListener('DOMContentLoaded', () => {
+      useImage(DEFAULT_IMAGE);
+    });
+
+    imageUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => useImage(event.target.result);
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function useImage(src) {
+      currentImageSrc = src;
+      resetGame();
+    }
+
+    function resetGame() {
+      stopTimer();
+      moves = 0;
+      secondsElapsed = 0;
+      gameStarted = false;
+      movesDisplay.textContent = '00';
+      timerDisplay.textContent = '00:00';
+      scorecardModal.classList.remove('active');
+
+      // Create initial indices [0, 1, ..., 8] and shuffle
+      tileOrder = Array.from({ length: TOTAL_TILES }, (_, i) => i);
+      shuffleArray(tileOrder);
+
+      renderBoard();
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      // Ensure puzzle isn't accidentally solved on load
+      const isSolved = array.every((val, index) => val === index);
+      if (isSolved) {
+        shuffleArray(array);
+      }
+    }
+
+    function startTimer() {
+      if (gameStarted) return;
+      gameStarted = true;
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+        const secs = String(secondsElapsed % 60).padStart(2, '0');
+        timerDisplay.textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    function renderBoard() {
+      grid.innerHTML = '';
+      tileOrder.forEach((originalIndex, currentPosition) => {
+        const tile = document.createElement('div');
+        tile.classList.add('puzzle-tile');
+        tile.draggable = true;
+        tile.dataset.position = currentPosition;
+
+        // Calculate tile background offsets (0%, 50%, 100%)
+        const col = originalIndex % GRID_SIZE;
+        const row = Math.floor(originalIndex / GRID_SIZE);
+        const bgX = (col / (GRID_SIZE - 1)) * 100;
+        const bgY = (row / (GRID_SIZE - 1)) * 100;
+
+        tile.style.backgroundImage = `url("${currentImageSrc}")`;
+        tile.style.backgroundSize = `${GRID_SIZE * 100}% ${GRID_SIZE * 100}%`;
+        tile.style.backgroundPosition = `${bgX}% ${bgY}%`;
+
+        // Event Listeners for HTML5 Drag & Drop
+        tile.addEventListener('dragstart', handleDragStart);
+        tile.addEventListener('dragover', handleDragOver);
+        tile.addEventListener('dragleave', handleDragLeave);
+        tile.addEventListener('drop', handleDrop);
+        tile.addEventListener('dragend', handleDragEnd);
+
+        grid.appendChild(tile);
+      });
+    }
+
+    // Drag and Drop Logic
+    function handleDragStart(e) {
+      startTimer();
+      draggedTileIndex = parseInt(this.dataset.position);
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      this.classList.add('drag-over');
+    }
+
+    function handleDragLeave() {
+      this.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      this.classList.remove('drag-over');
+
+      const targetTileIndex = parseInt(this.dataset.position);
+
+      if (draggedTileIndex !== null && draggedTileIndex !== targetTileIndex) {
+        // Swap pieces in the tileOrder array
+        [tileOrder[draggedTileIndex], tileOrder[targetTileIndex]] = 
+        [tileOrder[targetTileIndex], tileOrder[draggedTileIndex]];
+
+        moves++;
+        movesDisplay.textContent = String(moves).padStart(2, '0');
+
+        renderBoard();
+        checkWin();
+      }
+    }
+
+    function handleDragEnd() {
+      this.classList.remove('dragging');
+    }
+
+    function checkWin() {
+      const isSolved = tileOrder.every((val, index) => val === index);
+      if (isSolved) {
+        stopTimer();
+        setTimeout(() => {
+          finalMovesDisplay.textContent = moves;
+          finalTimeDisplay.textContent = timerDisplay.textContent;
+          scorecardModal.classList.add('active');
+        }, 300);
+      }
+    }
+
+    resetBtn.addEventListener('click', resetGame);
+    playAgainBtn.addEventListener('click', resetGame);
+  </script>
+</body>
+</html>
