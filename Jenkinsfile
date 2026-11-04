@@ -57,60 +57,63 @@ pipeline {
         // STAGE 3: TEST APPLICATION CONTAINER
         // ==========================================
 
-        stage('Test Application Container') {
-            steps {
-                echo '=== Stage 3: Testing Application Container ==='
+        
+stage('Test Application Container') {
+    steps {
+        echo '=== Stage 3: Testing Application Container ==='
 
-                script {
-                    try {
+        script {
+            try {
 
-                        // Remove any old test container
-                        sh """
-                            docker rm -f ${TEST_CONTAINER} || true
-                        """
+                // Step 1: Remove old test container
+                sh 'docker rm -f test-puzzle || true'
 
-                        // Start temporary container
-                        sh """
-                            docker run -d \
-                                --name ${TEST_CONTAINER} \
-                                ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-                        """
+                // Step 2: Start new container
+                sh """
+                    docker run -d \
+                    --name test-puzzle \
+                    ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                """
 
-                        // Give Nginx time to start
-                        sleep(time: 5, unit: 'SECONDS')
+                // Step 3: Wait for Nginx
+                sleep(time: 5, unit: 'SECONDS')
 
-                        // Check HTTP response from Nginx
-                        def healthCheck = sh(
-                            script: """
-                                docker exec ${TEST_CONTAINER} \
-                                wget -S -O /dev/null \
-                                http://127.0.0.1:80 2>&1 || true
-                            """,
-                            returnStdout: true
-                        ).trim()
+                // Step 4: Extract HTTP status code
+                def statusCode = sh(
+                    script: """
+                        docker exec test-puzzle \
+                        wget -S -O /dev/null \
+                        http://127.0.0.1:80 2>&1 \
+                        | awk '/HTTP\\// {print \$2}' \
+                        | tail -1
+                    """,
+                    returnStdout: true
+                ).trim()
 
-                        echo "Health Check Response:"
-                        echo healthCheck
+                echo "HTTP Status Code: ${statusCode}"
 
-                        // Validate HTTP 200 response
-                        if (!(healthCheck =~ /HTTP\\/[0-9.]+\\s+200\\b/)) {
-                            error("Application health check failed!")
-                        }
+                // Step 5: Validate
+                if (statusCode == '200') {
 
-                        echo 'Application health check PASSED!'
+                    echo 'SUCCESS: Application is healthy!'
 
-                    } finally {
+                } else {
 
-                        // Always remove temporary container
-                        echo 'Cleaning up test container...'
+                    error("Health check failed! HTTP Status: ${statusCode}")
 
-                        sh """
-                            docker rm -f ${TEST_CONTAINER} || true
-                        """
-                    }
                 }
+
+            } finally {
+
+                // Step 6: Cleanup
+                echo 'Removing temporary test container...'
+
+                sh 'docker rm -f test-puzzle || true'
             }
         }
+    }
+}
+
 
 
         // ==========================================
