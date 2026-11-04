@@ -29,16 +29,20 @@ pipeline {
             steps {
                 echo '=== Stage 3: Running Automated Container Health Check ==='
                 script {
-                    sh "docker run -d --name test-puzzle -p 8089:80 ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-                    sleep 5
+                    // 1. Run temporary test container
+                    sh "docker run -d --name test-puzzle tanmayfalke7/puzzle-app:${IMAGE_TAG}"
+                    sleep 3
                     
+                    // 2. Perform health check directly inside the container
                     def statusCode = sh(
-                        script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:8089",
+                        script: "docker exec test-puzzle curl -s -o /dev/null -w '%{http_code}' http://localhost:80",
                         returnStdout: true
                     ).trim()
 
+                    // 3. Clean up test container
                     sh "docker stop test-puzzle && docker rm test-puzzle"
 
+                    // 4. Validate response code
                     if (statusCode != '200') {
                         error("Health check failed! Server returned HTTP ${statusCode}")
                     } else {
