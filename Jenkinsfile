@@ -1,89 +1,208 @@
+
 pipeline {
     agent any
 
+    options {
+        skipDefaultCheckout(true)
+        timestamps()
+    }
+
     environment {
         IMAGE_NAME = 'puzzle-app'
+        REGISTRY   = 'tanmayfalke7'
         IMAGE_TAG  = "${BUILD_NUMBER}"
-        REGISTRY   = 'tanmayfalke7' // Your Docker Hub username
+        TEST_CONTAINER = 'test-puzzle'
+        PROD_CONTAINER = 'puzzle-prod'
+        APP_PORT = '8080'
     }
 
     stages {
+
+        // ==========================================
+        // STAGE 1: SOURCE CODE CHECKOUT
+        // ==========================================
+
         stage('Source Code Checkout') {
             steps {
-                echo '=== Stage 1: Checking out source code from Git ==='
+                echo '=== Stage 1: Checking out source code ==='
+
                 checkout scm
+
+                sh 'echo "Source code checkout completed."'
+                sh 'ls -la'
             }
         }
+
+
+        // ==========================================
+        // STAGE 2: BUILD DOCKER IMAGE
+        // ==========================================
 
         stage('Build Docker Image') {
             steps {
-                echo '=== Stage 2: Building Docker Container Image ==='
-                script {
-                    sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ."
-                    sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:latest ."
-                }
+                echo '=== Stage 2: Building Docker Image ==='
+
+                sh """
+                    docker build \
+                        -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} \
+                        -t ${REGISTRY}/${IMAGE_NAME}:latest .
+                """
+
+                sh 'docker images'
             }
         }
 
+
+        // ==========================================
+        // STAGE 3: TEST APPLICATION CONTAINER
+        // ==========================================
+
         stage('Test Application Container') {
             steps {
-                echo '=== Stage 3: Running Automated Container Health Check ==='
+                echo '=== Stage 3: Testing Application Container ==='
+
                 script {
-                    // 1. Run temporary test container
-                    sh "docker run -d --name test-puzzle tanmayfalke7/puzzle-app:${IMAGE_TAG}"
-                    sleep 3
-                    
-                    // 2. Perform health check directly inside the container
-                    def statusCode = sh(
-                        script: "docker exec test-puzzle curl -s -o /dev/null -w '%{http_code}' http://localhost:80",
-                        returnStdout: true
-                    ).trim()
+                    try {
 
-                    // 3. Clean up test container
-                    sh "docker stop test-puzzle && docker rm test-puzzle"
+                        // Remove any old test container
+                        sh """
+                            docker rm -f ${TEST_CONTAINER} || true
+                        """
 
-                    // 4. Validate response code
-                    if (statusCode != '200') {
-                        error("Health check failed! Server returned HTTP ${statusCode}")
-                    } else {
-                        echo "Health check passed! HTTP status code: ${statusCode}"
+                        // Start temporary container
+                        sh """
+                            docker run -d \
+                                --name ${TEST_CONTAINER} \
+                                ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                        """
+
+                        // Give Nginx time to start
+                        sleep(time: 5, unit: 'SECONDS')
+
+                        // Check HTTP response from Nginx
+                        def healthCheck = sh(
+                            script: """
+                                docker exec ${TEST_CONTAINER} \
+                                wget -S -O /dev/null \
+                                http://127.0.0.1:80 2>&1 || true
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        echo "Health Check Response:"
+                        echo healthCheck
+
+                        // Validate HTTP 200 response
+                        if (!(healthCheck =~ /HTTP\\/[0-9.]+\\s+200\\b/)) {
+                            error("Application health check failed!")
+                        }
+
+                        echo 'Application health check PASSED!'
+
+                    } finally {
+
+                        // Always remove temporary container
+                        echo 'Cleaning up test container...'
+
+                        sh """
+                            docker rm -f ${TEST_CONTAINER} || true
+                        """
                     }
                 }
             }
         }
 
+
+        // ==========================================
+        // STAGE 4: TERRAFORM PROVISIONING
+        // ==========================================
+
         stage('Terraform Provisioning') {
             steps {
-                echo '=== Stage 4: Provisioning Infrastructure via IaC ==='
+                echo '=== Stage 4: Terraform Infrastructure Validation ==='
+
                 dir('terraform') {
-                    sh 'terraform init'
-                    sh 'terraform plan -out=tfplan'
+
+                    // Initialize Terraform
+                    sh 'terraform init -input=false'
+
+                    // Validate Terraform configuration
+                    sh 'terraform validate'
+
+                    // Generate execution plan
+                    sh 'terraform plan -input=false -out=tfplan'
+
+                    echo 'Terraform plan generated successfully.'
                 }
             }
         }
 
+
+        // ==========================================
+        // STAGE 5: DEPLOY APPLICATION
+        // ==========================================
+
         stage('Deploy Application') {
             steps {
-                echo '=== Stage 5: Deploying Container to Production Environment ==='
+                echo '=== Stage 5: Deploying Application ==='
+
                 script {
-                    sh 'docker stop puzzle-prod || true'
-                    sh 'docker rm puzzle-prod || true'
-                    sh "docker run -d --name puzzle-prod -p 8080:80 ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+                    // Remove previous production container
+                    sh """
+                        docker rm -f ${PROD_CONTAINER} || true
+                    """
+
+                    // Deploy newly tested image
+                    sh """
+                        docker run -d \
+                            --name ${PROD_CONTAINER} \
+                            --restart unless-stopped \
+                            -p ${APP_PORT}:80 \
+                            ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                    """
+
+                    // Verify deployment
+                    sh """
+                        docker ps --filter name=${PROD_CONTAINER}
+                    """
+
+                    echo "Application deployed on port ${APP_PORT}."
                 }
             }
         }
     }
 
+
+    // ==========================================
+    // POST BUILD ACTIONS
+    // ==========================================
+
     post {
+
         always {
-            echo 'Cleaning up workspace artifact buffers...'
+            echo '=== Pipeline Cleanup ==='
+
+            // Ensure temporary container is removed
+            sh 'docker rm -f test-puzzle || true'
+
+            // Clean Jenkins workspace
             cleanWs()
         }
+
         success {
-            echo 'CI/CD Pipeline executed successfully!'
+            echo '======================================'
+            echo 'CI/CD PIPELINE EXECUTED SUCCESSFULLY!'
+            echo '======================================'
+
+            echo 'Application URL: http://localhost:8080'
         }
+
         failure {
-            echo 'CI/CD Pipeline failed during execution. Inspect stage logs.'
+            echo '======================================'
+            echo 'CI/CD PIPELINE FAILED!'
+            echo 'Check the failed stage in Jenkins.'
+            echo '======================================'
         }
     }
 }
