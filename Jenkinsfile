@@ -121,24 +121,26 @@ stage('Test Application Container') {
         // ==========================================
 
         stage('Terraform Provisioning') {
-            steps {
-                echo '=== Stage 4: Terraform Infrastructure Validation ==='
+    steps {
+        echo '=== Stage 4: Terraform Infrastructure Validation ==='
 
-                dir('terraform') {
+        withCredentials([
+            string(credentialsId: 'aws-access-key',
+                   variable: 'AWS_ACCESS_KEY_ID'),
 
-                    // Initialize Terraform
-                    sh 'terraform init -input=false'
-
-                    // Validate Terraform configuration
-                    sh 'terraform validate'
-
-                    // Generate execution plan
-                    sh 'terraform plan -input=false -out=tfplan'
-
-                    echo 'Terraform plan generated successfully.'
-                }
+            string(credentialsId: 'aws-secret-key',
+                   variable: 'AWS_SECRET_ACCESS_KEY')
+        ]) {
+            dir('terraform') {
+                sh '''
+                    terraform init -input=false
+                    terraform validate
+                    terraform plan -input=false -out=tfplan
+                '''
             }
         }
+    }
+}
 
 
         // ==========================================
