@@ -1,0 +1,15 @@
+# Terraform local state and binaries
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfplan
+
+# Local Jenkins configuration overrides
+config.xml
+
+# System / OS files
+.DS_Store
+Thumbs.db
