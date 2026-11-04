@@ -123,16 +123,13 @@ stage('Test Application Container') {
         stage('Terraform Provisioning') {
     steps {
         echo '=== Stage 4: Terraform Infrastructure Validation ==='
-
         withCredentials([
-            string(credentialsId: 'aws-access-key',
-                   variable: 'AWS_ACCESS_KEY_ID'),
-
-            string(credentialsId: 'aws-secret-key',
-                   variable: 'AWS_SECRET_ACCESS_KEY')
+            string(credentialsId: 'aws-access-key', variable: 'AWS Access Key'),
+            string(credentialsId: 'aws-secret-key', variable: 'AWS Secret Key')
         ]) {
             dir('terraform') {
                 sh '''
+                    export AWS_DEFAULT_REGION="ap-south-1"
                     terraform init -input=false
                     terraform validate
                     terraform plan -input=false -out=tfplan
